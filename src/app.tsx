@@ -94,11 +94,16 @@ class App extends React.Component<Record<string, unknown>, State> {
    async createPlaylist(sources: string[]) {
       const sourcePlaylistNames = sources.map((source) => this.findPlaylist(source).name);
 
-      const newPlaylist = await Spicetify.Platform.RootlistAPI.createPlaylist('Combined Playlist', {
+      const uri = await Spicetify.Platform.RootlistAPI.createPlaylist('Combined Playlist', {
          before: 'start',
-         description: `Combined playlist from ${sourcePlaylistNames.join(', ')}.`,
-         public: false,
       });
+      let newPlaylist = {uri : uri};
+
+      const playlistUri = `spotify:playlist:${newPlaylist.uri.split(':')[2]}`;
+
+      // Set description and make playlist private
+      await Spicetify.Platform.PlaylistAPI.setAttributes(playlistUri, { description: `Combined playlist from ${sourcePlaylistNames.join(', ')}.` });
+      await Spicetify.Platform.PlaylistPermissionsAPI.setBasePermission(newPlaylist.uri, "BLOCKED");
 
       this.setState((state) => ({ playlists: [...state.playlists, newPlaylist ] }));
 
