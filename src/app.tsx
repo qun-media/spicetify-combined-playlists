@@ -1,6 +1,6 @@
 import React from 'react';
-import { combinePlaylists, getPlaylistInfo, getPaginatedSpotifyData, TrackState, setCombinedPlaylistsSettings, getCombinedPlaylistsSettings } from './utils';
-import { CREATE_NEW_PLAYLIST_IDENTIFIER, CREATE_PLAYLIST_URL, GET_PLAYLISTS_URL, LIKED_SONGS_PLAYLIST_FACADE, LS_KEY } from './constants';
+import { getAllPlaylists, combinePlaylists, getPlaylistInfo, TrackState, setCombinedPlaylistsSettings, getCombinedPlaylistsSettings } from './utils';
+import { CREATE_NEW_PLAYLIST_IDENTIFIER, LIKED_SONGS_PLAYLIST_FACADE, LS_KEY } from './constants';
 import type { CombinedPlaylist, SpotifyPlaylist, InitialPlaylistForm, CombinedPlaylistsSettings } from './types';
 
 import './assets/css/styles.scss';
@@ -50,7 +50,7 @@ class App extends React.Component<Record<string, unknown>, State> {
 
    @TrackState('isInitializing')
    async componentDidMount() {
-      const playlists = [...await getPaginatedSpotifyData<SpotifyPlaylist>(GET_PLAYLISTS_URL), LIKED_SONGS_PLAYLIST_FACADE];
+      const playlists = [...await getAllPlaylists(), LIKED_SONGS_PLAYLIST_FACADE];
       const combinedPlaylists = this.combinedPlaylistsLs.map((combinedPlaylist) => this.getMostRecentPlaylistFromData(combinedPlaylist, playlists));
       const checkedCombinedPlaylists = this.checkIfPlaylistsAreStillValid(combinedPlaylists);
 
@@ -92,11 +92,10 @@ class App extends React.Component<Record<string, unknown>, State> {
    }
 
    async createPlaylist(sources: string[]) {
-      const { username }: { username: string } = await Spicetify.Platform.UserAPI.getUser();
       const sourcePlaylistNames = sources.map((source) => this.findPlaylist(source).name);
 
-      const newPlaylist = await Spicetify.CosmosAsync.post(CREATE_PLAYLIST_URL(username), {
-         name: 'Combined Playlist',
+      const newPlaylist = await Spicetify.Platform.RootlistAPI.createPlaylist('Combined Playlist', {
+         before: 'start',
          description: `Combined playlist from ${sourcePlaylistNames.join(', ')}.`,
          public: false,
       });

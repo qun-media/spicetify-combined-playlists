@@ -1,11 +1,7 @@
 import { SpotifyPlaylist } from '../types';
 
-export const GET_PLAYLISTS_URL = 'https://api.spotify.com/v1/me/playlists?limit=50';
-
 export const LS_KEY = 'combined-playlists';
 export const LS_KEY_SETTINGS = 'combined-playlists-settings';
-
-export const CREATE_PLAYLIST_URL = (userId: string) => `https://api.spotify.com/v1/users/${userId}/playlists`;
 
 export const CREATE_NEW_PLAYLIST_IDENTIFIER = 'CREATE_NEW_PLAYLIST_IDENTIFIER';
 

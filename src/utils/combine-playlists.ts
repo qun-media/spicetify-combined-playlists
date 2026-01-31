@@ -44,7 +44,7 @@ export async function combinePlaylists(sourcePlaylists: PlaylistInfo[], targetPl
 }
 
 export function addTracksToPlaylist(playlistUri: string, trackUris: string[]): Promise<void> {
-   return Spicetify.Platform.PlaylistAPI.add(playlistUri, trackUris, {});
+   return Spicetify.Platform.PlaylistAPI.add(playlistUri, trackUris, { after: "end" });
 }
 
 async function getPlaylistTracksWithCache(uri: string) {
