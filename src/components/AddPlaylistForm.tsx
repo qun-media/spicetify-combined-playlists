@@ -5,9 +5,10 @@ import { SpicetifySvgIcon } from './SpicetifySvgIcon';
 import type { InitialPlaylistForm } from '../types/initial-playlist-form';
 import { CREATE_NEW_PLAYLIST_IDENTIFIER } from '../constants';
 import { TrashIcon } from './TrashIcon';
+import { RootlistPlaylist } from '../utils';
 
 interface Props {
-   playlists: SpotifyApi.PlaylistObjectSimplified[];
+   playlists: RootlistPlaylist[];
    onSubmit: SubmitEventHandler;
    onDelete?: DeleteEventHandler;
    initialForm?: InitialPlaylistForm;

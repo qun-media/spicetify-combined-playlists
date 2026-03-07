@@ -1,7 +1,8 @@
 import React from 'react';
 import { getAllPlaylists, combinePlaylists, getPlaylistInfo, TrackState, setCombinedPlaylistsSettings, getCombinedPlaylistsSettings } from './utils';
+import type { RootlistPlaylist, RootListItems } from './utils';
 import { CREATE_NEW_PLAYLIST_IDENTIFIER, LIKED_SONGS_PLAYLIST_FACADE, LS_KEY } from './constants';
-import type { CombinedPlaylist, SpotifyPlaylist, InitialPlaylistForm, CombinedPlaylistsSettings } from './types';
+import type { CombinedPlaylist, InitialPlaylistForm, CombinedPlaylistsSettings } from './types';
 
 import './assets/css/styles.scss';
 import { SpicetifySvgIcon } from './components/SpicetifySvgIcon';
@@ -12,9 +13,10 @@ import { ImportExportModal } from './components/ImportExportModal';
 import { synchronizeCombinedPlaylists } from './extensions/auto-sync';
 import { UpdateBanner } from './components/UpdateBanner';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { addIdFromUri } from './utils/add-id-from-uri';
 
 export interface State {
-   playlists: SpotifyPlaylist[];
+   playlists: RootlistPlaylist[];
    combinedPlaylists: CombinedPlaylist[];
    isLoading: boolean;
    isInitializing: boolean;
@@ -91,29 +93,36 @@ class App extends React.Component<Record<string, unknown>, State> {
       Spicetify.PopupModal.hide();
    }
 
-   async createPlaylist(sources: string[]) {
+   async createPlaylist(sources: string[]): Promise<RootlistPlaylist> {
       const sourcePlaylistNames = sources.map((source) => this.findPlaylist(source).name);
 
-      const uri = await Spicetify.Platform.RootlistAPI.createPlaylist('Combined Playlist', {
+      const newPlaylistUri: string = await Spicetify.Platform.RootlistAPI.createPlaylist('Combined Playlist', {
          before: 'start',
       });
-      let newPlaylist = {uri : uri};
-
-      const playlistUri = `spotify:playlist:${newPlaylist.uri.split(':')[2]}`;
 
       // Set description and make playlist private
-      await Spicetify.Platform.PlaylistAPI.setAttributes(playlistUri, { description: `Combined playlist from ${sourcePlaylistNames.join(', ')}.` });
-      await Spicetify.Platform.PlaylistPermissionsAPI.setBasePermission(newPlaylist.uri, "BLOCKED");
+      await Spicetify.Platform.PlaylistAPI.setAttributes(newPlaylistUri, { description: `Combined playlist from ${sourcePlaylistNames.join(', ')}.` });
+      await Spicetify.Platform.PlaylistPermissionsAPI.setBasePermission(newPlaylistUri, 'BLOCKED');
 
-      this.setState((state) => ({ playlists: [...state.playlists, newPlaylist ] }));
+      /**
+       * Using the rootlistApi instead of Spicetify.Platform.PlaylistAPI.getContents(newPlaylistUri) because the playlistApi doesn't return enough data.
+       * Note that playlists can be nested in folders when using the rootlistApi. But we don't need to care, because new playlists are always created in the root.
+       */
+      const playlist: RootlistPlaylist = await Spicetify.Platform.RootlistAPI.getContents()
+         .then((contents: { items: RootListItems[] }) => contents.items.find((item) => item.uri === newPlaylistUri))
+         .then((playlist: RootlistPlaylist) => addIdFromUri(playlist));
+      this.setState((state) => ({ playlists: [...state.playlists, playlist ] }));
 
-      return newPlaylist;
+      console.log('new playlist', playlist);
+
+
+      return playlist;
    }
 
    /**
     * Save combined playlist to localstorage and state. Making sure not to create a duplicate
     */
-   saveCombinedPlaylist(sourcePlaylists: SpotifyPlaylist[], targetPlaylist: SpotifyPlaylist) {
+   saveCombinedPlaylist(sourcePlaylists: RootlistPlaylist[], targetPlaylist: RootlistPlaylist) {
       const combinedPlaylist: CombinedPlaylist = {
          sources: sourcePlaylists.map(getPlaylistInfo),
          target: getPlaylistInfo(targetPlaylist),
@@ -122,12 +131,16 @@ class App extends React.Component<Record<string, unknown>, State> {
       const index = this.state.combinedPlaylists.findIndex(({ target }) => target.id === combinedPlaylist.target.id);
       let newCombinedPlaylists: CombinedPlaylist[];
 
+      // TODO THIS DOES NOT WORK CORRECTLY. Playlists aren't saved to LS correctly
+
       if (index >= 0) {
          newCombinedPlaylists = this.state.combinedPlaylists;
          newCombinedPlaylists[index] = combinedPlaylist;
       } else {
          newCombinedPlaylists = this.state.combinedPlaylists.concat(combinedPlaylist);
       }
+
+      console.log('new', newCombinedPlaylists);
 
       this.setState({
          combinedPlaylists: newCombinedPlaylists,
@@ -180,13 +193,13 @@ class App extends React.Component<Record<string, unknown>, State> {
       await synchronizeCombinedPlaylists();
    }
 
-   findPlaylist(id: string): SpotifyPlaylist {
-      return this.state.playlists.find((playlist) => playlist.id === id) as SpotifyPlaylist;
+   findPlaylist(id: string) {
+      return this.state.playlists.find((playlist) => playlist.id === id) as RootlistPlaylist;
    }
 
-   getMostRecentPlaylistFromData(combinedPlaylist: CombinedPlaylist, playlists: SpotifyPlaylist[]): CombinedPlaylist {
-      const sources = combinedPlaylist.sources.map(({ id }) => playlists.find((pl) => pl.id === id) as SpotifyPlaylist);
-      const target = playlists.find((pl) => pl.id === combinedPlaylist.target.id) as SpotifyPlaylist;
+   getMostRecentPlaylistFromData(combinedPlaylist: CombinedPlaylist, playlists: RootlistPlaylist[]): CombinedPlaylist {
+      const sources = combinedPlaylist.sources.map(({ id }) => playlists.find((pl) => pl.id === id) as RootlistPlaylist);
+      const target = playlists.find((pl) => pl.id === combinedPlaylist.target.id) as RootlistPlaylist;
 
       return { sources, target };
    }

@@ -1,9 +1,9 @@
 import React from 'react';
-import type { SpotifyPlaylist } from '../types';
 import { SpicetifySvgIcon } from './SpicetifySvgIcon';
+import type { RootlistPlaylist } from '../utils';
 
 export interface CardProps {
-   playlist: SpotifyPlaylist;
+   playlist: RootlistPlaylist;
    onClickAction?: () => void;
    onClick?: () => void;
 }

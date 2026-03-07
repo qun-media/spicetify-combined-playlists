@@ -1,28 +1,39 @@
-import { SpotifyPlaylist } from '../types';
+import { addIdFromUri } from './add-id-from-uri';
 
-function processPlaylists(items: any[]): SpotifyPlaylist[] {
-    const playlists: SpotifyPlaylist[] = [];
+export type RootListItems = RootlistPlaylist | Folder;
 
-    for (const item of items) {
-        if (item.type === 'playlist') {
-            const { URI } = Spicetify;
-            const uri = URI.from(item.uri);
-            if (uri?.id) {
-                playlists.push({
-                    ...item,
-                    id: uri.id,
-                } as SpotifyPlaylist);
-            }
-        } else if (item.type === 'folder' && item.items) {
-            playlists.push(...processPlaylists(item.items));
-        }
-    }
-
-    return playlists;
+export interface RootlistPlaylist {
+   id: string;
+   type: 'playlist';
+   uri: string;
+   name: string;
+   images: { url: string }[];
+   description: string;
+   [key: string]: unknown; // Allow other properties
 }
 
+export interface Folder {
+   type: 'folder';
+   uri: string;
+   items: RootListItems[];
+   name: string;
+   [key: string]: unknown; // Allow other properties
+}
 
-export async function getAllPlaylists(): Promise<SpotifyPlaylist[]> {
+function processPlaylists(items: RootListItems[]): RootlistPlaylist[] {
+   return items.flatMap((item) => {
+      if (item.type === 'playlist') {
+         const uri = Spicetify.URI.from(item.uri);
+         return uri?.id ? [addIdFromUri(item)] : [];
+      }
+      if (item.type === 'folder' && item.items) {
+         return processPlaylists(item.items);
+      }
+      return [];
+   });
+}
+
+export async function getAllPlaylists(): Promise<RootlistPlaylist[]> {
    const rootlist = await Spicetify.Platform.RootlistAPI.getContents();
    return processPlaylists(rootlist.items);
 }

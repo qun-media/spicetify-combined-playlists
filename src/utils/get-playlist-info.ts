@@ -1,6 +1,5 @@
 import type { PlaylistInfo } from '../types/combined-playlist';
-import type { SpotifyPlaylist } from '../types/spotify-playlist';
 
-export function getPlaylistInfo({ id, name, uri }: SpotifyPlaylist): PlaylistInfo {
+export function getPlaylistInfo({ id, name, uri }: PlaylistInfo): PlaylistInfo {
    return { id, name, uri };
 }

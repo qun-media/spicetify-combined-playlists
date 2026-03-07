@@ -1,11 +1,11 @@
-import { SpotifyPlaylist } from '../types';
+import { RootlistPlaylist } from '../utils';
 
 export const LS_KEY = 'combined-playlists';
 export const LS_KEY_SETTINGS = 'combined-playlists-settings';
 
 export const CREATE_NEW_PLAYLIST_IDENTIFIER = 'CREATE_NEW_PLAYLIST_IDENTIFIER';
 
-export const LIKED_SONGS_PLAYLIST_FACADE: SpotifyPlaylist = {
+export const LIKED_SONGS_PLAYLIST_FACADE: RootlistPlaylist = {
    name: Spicetify.Platform?.Translations['shared.library.entity-row.liked-songs.title'],
    collaborative: false,
    description: '',

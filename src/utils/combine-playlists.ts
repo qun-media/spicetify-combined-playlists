@@ -1,5 +1,5 @@
 import { LIKED_SONGS_PLAYLIST_FACADE } from '../constants';
-import { PlaylistInfo, PlaylistContentsResponse } from '../types';
+import { PlaylistContentsResponse, PlaylistInfo } from '../types';
 import { splitArrayInChunks } from './';
 
 // Cache used when fetching playlist tracks to avoid unnecessary API calls
@@ -44,7 +44,7 @@ export async function combinePlaylists(sourcePlaylists: PlaylistInfo[], targetPl
 }
 
 export function addTracksToPlaylist(playlistUri: string, trackUris: string[]): Promise<void> {
-   return Spicetify.Platform.PlaylistAPI.add(playlistUri, trackUris, { after: "end" });
+   return Spicetify.Platform.PlaylistAPI.add(playlistUri, trackUris, { after: 'end' });
 }
 
 async function getPlaylistTracksWithCache(uri: string) {
