@@ -1,5 +1,5 @@
 import React from 'react';
-import { getAllPlaylists, combinePlaylists, getPlaylistInfo, TrackState, setCombinedPlaylistsSettings, getCombinedPlaylistsSettings } from './utils';
+import { getAllPlaylists, getAllPlaylistItems, combinePlaylists, getPlaylistInfo, TrackState, setCombinedPlaylistsSettings, getCombinedPlaylistsSettings } from './utils';
 import type { RootlistPlaylist, RootListItems } from './utils';
 import { CREATE_NEW_PLAYLIST_IDENTIFIER, LIKED_SONGS_PLAYLIST_FACADE, LS_KEY } from './constants';
 import type { CombinedPlaylist, InitialPlaylistForm, CombinedPlaylistsSettings } from './types';
@@ -17,6 +17,7 @@ import { addIdFromUri } from './utils/add-id-from-uri';
 
 export interface State {
    playlists: RootlistPlaylist[];
+   playlistItems: RootListItems[];
    combinedPlaylists: CombinedPlaylist[];
    isLoading: boolean;
    isInitializing: boolean;
@@ -43,6 +44,7 @@ class App extends React.Component<Record<string, unknown>, State> {
 
       this.state = {
          playlists: [],
+         playlistItems: [],
          combinedPlaylists: [],
          isLoading: false,
          isInitializing: false,
@@ -52,12 +54,15 @@ class App extends React.Component<Record<string, unknown>, State> {
 
    @TrackState('isInitializing')
    async componentDidMount() {
-      const playlists = [...await getAllPlaylists(), LIKED_SONGS_PLAYLIST_FACADE];
+      const [rawPlaylists, rawPlaylistItems] = await Promise.all([getAllPlaylists(), getAllPlaylistItems()]);
+      const playlists = [...rawPlaylists, LIKED_SONGS_PLAYLIST_FACADE];
+      const playlistItems = [...rawPlaylistItems, LIKED_SONGS_PLAYLIST_FACADE];
       const combinedPlaylists = this.combinedPlaylistsLs.map((combinedPlaylist) => this.getMostRecentPlaylistFromData(combinedPlaylist, playlists));
       const checkedCombinedPlaylists = this.checkIfPlaylistsAreStillValid(combinedPlaylists);
 
       this.setState({
          playlists,
+         playlistItems,
          combinedPlaylists: checkedCombinedPlaylists
       });
 
@@ -205,7 +210,7 @@ class App extends React.Component<Record<string, unknown>, State> {
    }
 
    showAddPlaylistModal() {
-      const Form = <PlaylistForm playlists={this.state.playlists} onSubmit={this.createNewCombinedPlaylist.bind(this)} />;
+      const Form = <PlaylistForm playlists={this.state.playlists} playlistItems={this.state.playlistItems} onSubmit={this.createNewCombinedPlaylist.bind(this)} />;
 
       Spicetify.PopupModal.display({
          title: 'Create combined playlist',
@@ -221,6 +226,7 @@ class App extends React.Component<Record<string, unknown>, State> {
       };
       const Form = <PlaylistForm
          playlists={this.state.playlists}
+         playlistItems={this.state.playlistItems}
          onSubmit={this.createNewCombinedPlaylist.bind(this)}
          onDelete={() => {
             Spicetify.PopupModal.hide();
