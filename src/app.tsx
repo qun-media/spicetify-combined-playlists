@@ -128,9 +128,6 @@ class App extends React.Component<Record<string, unknown>, State> {
          .then((playlist: RootlistPlaylist) => addIdFromUri(playlist));
       this.setState((state) => ({ playlistItems: [...state.playlistItems, playlist ] }));
 
-      console.log('new playlist', playlist);
-
-
       return playlist;
    }
 
@@ -146,16 +143,12 @@ class App extends React.Component<Record<string, unknown>, State> {
       const index = this.state.combinedPlaylists.findIndex(({ target }) => target.id === combinedPlaylist.target.id);
       let newCombinedPlaylists: CombinedPlaylist[];
 
-      // TODO THIS DOES NOT WORK CORRECTLY. Playlists aren't saved to LS correctly
-
       if (index >= 0) {
          newCombinedPlaylists = this.state.combinedPlaylists;
          newCombinedPlaylists[index] = combinedPlaylist;
       } else {
          newCombinedPlaylists = this.state.combinedPlaylists.concat(combinedPlaylist);
       }
-
-      console.log('new', newCombinedPlaylists);
 
       this.setState({
          combinedPlaylists: newCombinedPlaylists,
