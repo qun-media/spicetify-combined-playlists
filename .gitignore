@@ -147,3 +147,4 @@ out
 .DS_Store
 .env.ts
 dist/
+.idea
