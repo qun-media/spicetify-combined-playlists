@@ -1,9 +1,10 @@
-import { Formik, Form, ErrorMessage } from 'formik';
-import React, { useRef, useEffect } from 'react';
-import type { InitialPlaylistForm } from '../types/initial-playlist-form';
-import { CREATE_NEW_PLAYLIST_IDENTIFIER } from '../constants';
-import { TrashIcon } from './TrashIcon';
-import type { RootlistPlaylist, RootListItems, Folder } from '../utils';
+import {ErrorMessage, Form, Formik} from 'formik';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import stringSimilarity from 'string-similarity-js';
+import type {InitialPlaylistForm} from '../types/initial-playlist-form';
+import {CREATE_NEW_PLAYLIST_IDENTIFIER} from '../constants';
+import {TrashIcon} from './TrashIcon';
+import type {Folder, RootListItems, RootlistPlaylist} from '../utils';
 
 interface Props {
    playlists: RootlistPlaylist[];
@@ -90,6 +91,48 @@ function FolderItem({ folder, sources, onTogglePlaylist, onToggleFolder }: Folde
 }
 
 export function PlaylistForm({ playlists, playlistItems, onSubmit, onDelete, initialForm = defaultForm, isNew = true }: Props) {
+   const [searchQuery, setSearchQuery] = useState('');
+
+   const filterItems = (items: RootListItems[], query: string): RootListItems[] => {
+      if (!query.trim()) return items;
+      const lowerQuery = query.toLowerCase().trim();
+      return items.reduce<RootListItems[]>((acc, item) => {
+         if (item.type === 'playlist') {
+            if (item.name.toLowerCase().includes(lowerQuery)) {
+               acc.push(item);
+            }
+         } else if (item.type === 'folder') {
+            const folderSimilarity = stringSimilarity(item.name.toLowerCase(), lowerQuery);
+            if (folderSimilarity >= 0.7) {
+               acc.push(item); // include whole folder
+            } else {
+               const filteredSubItems = filterItems(item.items, query);
+               if (filteredSubItems.length > 0) {
+                  acc.push({ ...item, items: filteredSubItems });
+               }
+            }
+         }
+         return acc;
+      }, []);
+   };
+
+   const filteredPlaylistItems = useMemo(() => filterItems(playlistItems, searchQuery), [playlistItems, searchQuery]);
+
+   const playlistNameMap = useMemo(() => {
+      const map = new Map<string, string>();
+      const addToMap = (items: RootListItems[]) => {
+         items.forEach((item) => {
+            if (item.type === 'playlist') {
+               map.set(item.id, item.name);
+            } else if (item.type === 'folder') {
+               addToMap(item.items);
+            }
+         });
+      };
+      addToMap(playlistItems);
+      return map;
+   }, [playlistItems]);
+
    const validationFn = (form: InitialPlaylistForm) => {
       const errors: Record<string, unknown> = {};
       if (form.sources.length === 0) errors.sources = 'Select at least one source playlist';
@@ -125,10 +168,18 @@ export function PlaylistForm({ playlists, playlistItems, onSubmit, onDelete, ini
 
             return (
                <Form id="create-combined-playlist-form">
+                  <h3>Source playlists</h3>
+                  <input
+                     type="text"
+                     placeholder="Search playlists..."
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                     className="main-dropDown-dropDown"
+                     id="search-input"
+                  />
                   <fieldset disabled={isSubmitting}>
-                     <h3>Source playlists</h3>
                      <div className="source-playlist-list">
-                        {playlistItems.map((item) => {
+                        {filteredPlaylistItems.map((item) => {
                            if (item.type === 'playlist') {
                               return (
                                  <label key={item.id} className="source-playlist-item">
@@ -151,6 +202,16 @@ export function PlaylistForm({ playlists, playlistItems, onSubmit, onDelete, ini
                            return null;
                         })}
                      </div>
+                     {values.sources.length > 0 && (
+                        <div className="selected-playlists">
+                           <h4>Selected Playlists</h4>
+                           <ul>
+                              {values.sources.map(id => (
+                                 <li key={id}>{playlistNameMap.get(id) || id}</li>
+                              ))}
+                           </ul>
+                        </div>
+                     )}
                      <ErrorMsg name="sources" />
 
                      <h3>Target playlist</h3>
