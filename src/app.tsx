@@ -1,22 +1,31 @@
 import React from 'react';
-import { getAllPlaylists, combinePlaylists, getPlaylistInfo, TrackState, setCombinedPlaylistsSettings, getCombinedPlaylistsSettings } from './utils';
-import type { RootlistPlaylist, RootListItems } from './utils';
-import { CREATE_NEW_PLAYLIST_IDENTIFIER, LIKED_SONGS_PLAYLIST_FACADE, LS_KEY } from './constants';
-import type { CombinedPlaylist, InitialPlaylistForm, CombinedPlaylistsSettings } from './types';
+import {
+   combinePlaylists,
+   getCombinedPlaylistsSettings,
+   getPlaylistInfo,
+   getPlaylists,
+   processPlaylists,
+   RootListItems,
+   RootlistPlaylist,
+   setCombinedPlaylistsSettings,
+   TrackState
+} from './utils';
+import {CREATE_NEW_PLAYLIST_IDENTIFIER, LIKED_SONGS_PLAYLIST_FACADE, LS_KEY} from './constants';
+import type {CombinedPlaylist, CombinedPlaylistsSettings, InitialPlaylistForm} from './types';
 
 import './assets/css/styles.scss';
-import { SpicetifySvgIcon } from './components/SpicetifySvgIcon';
-import { PlaylistForm } from './components/AddPlaylistForm';
-import { AddPlaylistCard } from './components/AddPlaylistCard';
-import { Card } from './components/Card';
-import { ImportExportModal } from './components/ImportExportModal';
-import { synchronizeCombinedPlaylists } from './extensions/auto-sync';
-import { UpdateBanner } from './components/UpdateBanner';
-import { ConfirmDialog } from './components/ConfirmDialog';
-import { addIdFromUri } from './utils/add-id-from-uri';
+import {SpicetifySvgIcon} from './components/SpicetifySvgIcon';
+import {PlaylistForm} from './components/AddPlaylistForm';
+import {AddPlaylistCard} from './components/AddPlaylistCard';
+import {Card} from './components/Card';
+import {ImportExportModal} from './components/ImportExportModal';
+import {synchronizeCombinedPlaylists} from './extensions/auto-sync';
+import {UpdateBanner} from './components/UpdateBanner';
+import {ConfirmDialog} from './components/ConfirmDialog';
+import {addIdFromUri} from './utils/add-id-from-uri';
 
 export interface State {
-   playlists: RootlistPlaylist[];
+   playlistItems: RootListItems[];
    combinedPlaylists: CombinedPlaylist[];
    isLoading: boolean;
    isInitializing: boolean;
@@ -36,13 +45,17 @@ class App extends React.Component<Record<string, unknown>, State> {
       Spicetify.LocalStorage.set(LS_KEY, JSON.stringify(playlists));
    }
 
+   get flattenedPlaylists(): RootlistPlaylist[] {
+      return processPlaylists(this.state.playlistItems);
+   }
+
    constructor(props: Record<string, unknown>) {
       super(props);
 
       const settings = getCombinedPlaylistsSettings();
 
       this.state = {
-         playlists: [],
+         playlistItems: [],
          combinedPlaylists: [],
          isLoading: false,
          isInitializing: false,
@@ -52,12 +65,14 @@ class App extends React.Component<Record<string, unknown>, State> {
 
    @TrackState('isInitializing')
    async componentDidMount() {
-      const playlists = [...await getAllPlaylists(), LIKED_SONGS_PLAYLIST_FACADE];
+      const [rawPlaylists, rawPlaylistItems] = await Promise.all([getPlaylists(true), getPlaylists()]);
+      const playlists = [...rawPlaylists, LIKED_SONGS_PLAYLIST_FACADE];
+      const playlistItems = [...rawPlaylistItems, LIKED_SONGS_PLAYLIST_FACADE];
       const combinedPlaylists = this.combinedPlaylistsLs.map((combinedPlaylist) => this.getMostRecentPlaylistFromData(combinedPlaylist, playlists));
       const checkedCombinedPlaylists = this.checkIfPlaylistsAreStillValid(combinedPlaylists);
 
       this.setState({
-         playlists,
+         playlistItems,
          combinedPlaylists: checkedCombinedPlaylists
       });
 
@@ -111,7 +126,7 @@ class App extends React.Component<Record<string, unknown>, State> {
       const playlist: RootlistPlaylist = await Spicetify.Platform.RootlistAPI.getContents()
          .then((contents: { items: RootListItems[] }) => contents.items.find((item) => item.uri === newPlaylistUri))
          .then((playlist: RootlistPlaylist) => addIdFromUri(playlist));
-      this.setState((state) => ({ playlists: [...state.playlists, playlist ] }));
+      this.setState((state) => ({ playlistItems: [...state.playlistItems, playlist ] }));
 
       console.log('new playlist', playlist);
 
@@ -194,7 +209,7 @@ class App extends React.Component<Record<string, unknown>, State> {
    }
 
    findPlaylist(id: string) {
-      return this.state.playlists.find((playlist) => playlist.id === id) as RootlistPlaylist;
+      return this.flattenedPlaylists.find((playlist) => playlist.id === id) as RootlistPlaylist;
    }
 
    getMostRecentPlaylistFromData(combinedPlaylist: CombinedPlaylist, playlists: RootlistPlaylist[]): CombinedPlaylist {
@@ -205,7 +220,7 @@ class App extends React.Component<Record<string, unknown>, State> {
    }
 
    showAddPlaylistModal() {
-      const Form = <PlaylistForm playlists={this.state.playlists} onSubmit={this.createNewCombinedPlaylist.bind(this)} />;
+      const Form = <PlaylistForm playlists={this.flattenedPlaylists} playlistItems={this.state.playlistItems} onSubmit={this.createNewCombinedPlaylist.bind(this)} />;
 
       Spicetify.PopupModal.display({
          title: 'Create combined playlist',
@@ -220,7 +235,8 @@ class App extends React.Component<Record<string, unknown>, State> {
          sources: combinedPlaylist.sources.map((source) => source.id)
       };
       const Form = <PlaylistForm
-         playlists={this.state.playlists}
+         playlists={this.flattenedPlaylists}
+         playlistItems={this.state.playlistItems}
          onSubmit={this.createNewCombinedPlaylist.bind(this)}
          onDelete={() => {
             Spicetify.PopupModal.hide();
@@ -240,7 +256,7 @@ class App extends React.Component<Record<string, unknown>, State> {
    openImportExportModal() {
       const importCombinedPlaylists = (combinedPlaylistsData: string) => {
          const combinedPlaylists = JSON.parse(combinedPlaylistsData);
-         const safeCombinedPlaylists = this.checkIfPlaylistsAreStillValid(combinedPlaylists.map((combinedPlaylist: CombinedPlaylist) => this.getMostRecentPlaylistFromData(combinedPlaylist, this.state.playlists)));
+         const safeCombinedPlaylists = this.checkIfPlaylistsAreStillValid(combinedPlaylists.map((combinedPlaylist: CombinedPlaylist) => this.getMostRecentPlaylistFromData(combinedPlaylist, this.flattenedPlaylists)));
 
          this.setState({ combinedPlaylists: safeCombinedPlaylists });
 
