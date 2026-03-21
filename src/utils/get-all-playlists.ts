@@ -1,4 +1,4 @@
-import { addIdFromUri } from './add-id-from-uri';
+import {addIdFromUri} from './add-id-from-uri';
 
 export type RootListItems = RootlistPlaylist | Folder;
 
@@ -20,7 +20,7 @@ export interface Folder {
    [key: string]: unknown; // Allow other properties
 }
 
-function processPlaylists(items: RootListItems[]): RootlistPlaylist[] {
+export function processPlaylists(items: RootListItems[]): RootlistPlaylist[] {
    return items.flatMap((item) => {
       if (item.type === 'playlist') {
          const uri = Spicetify.URI.from(item.uri);
@@ -45,12 +45,10 @@ function processItems(items: RootListItems[]): RootListItems[] {
    }, []);
 }
 
-export async function getAllPlaylists(): Promise<RootlistPlaylist[]> {
+export async function getPlaylists(): Promise<RootListItems[]>;
+export async function getPlaylists(flat: true): Promise<RootlistPlaylist[]>;
+export async function getPlaylists(flat: false): Promise<RootListItems[]>;
+export async function getPlaylists(flat: boolean = false): Promise<RootListItems[] | RootlistPlaylist[]> {
    const rootlist = await Spicetify.Platform.RootlistAPI.getContents();
-   return processPlaylists(rootlist.items);
-}
-
-export async function getAllPlaylistItems(): Promise<RootListItems[]> {
-   const rootlist = await Spicetify.Platform.RootlistAPI.getContents();
-   return processItems(rootlist.items);
+   return flat ? processPlaylists(rootlist.items) : processItems(rootlist.items);
 }
